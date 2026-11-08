@@ -10,9 +10,15 @@
 #include <stdint.h>
 
 #define OFT_LINK_VERSION 1
-#define OFT_MAX_PAYLOAD 600
 #define OFT_MAX_PLAN_SEATS 8
+/* Samples per frame this build can hold. The wire format allows 256 (the Timer side keeps
+ * that); a Node that only ever sends small batches builds with e.g. -DOFT_MAX_SAMPLES=32 to
+ * keep its static RAM small. */
+#ifndef OFT_MAX_SAMPLES
 #define OFT_MAX_SAMPLES 256
+#endif
+/* Largest payload: a Samples message (18-byte header + 2 bytes per sample), rounded up. */
+#define OFT_MAX_PAYLOAD (20 + 2 * OFT_MAX_SAMPLES)
 /* COBS worst case for payload + CRC, plus the delimiter. */
 #define OFT_MAX_FRAME (OFT_MAX_PAYLOAD + 2 + (OFT_MAX_PAYLOAD + 2) / 254 + 1 + 1)
 

@@ -39,6 +39,10 @@ idf_component_register(SRCS ${sources}
     REQUIRES esp_app_format esp_driver_gpio esp_driver_rmt esp_driver_uart esp_driver_usb_serial_jtag esp_wifi esp_phy esp_timer esp_hw_support
              nvs_flash esp_rom esp_ringbuf espressif__esp-dsp)
 
+# OFT Node mode: 32-sample batches, so the codec's buffers stay small (static RAM is tight
+# under the RF capture bank, see radio/c5/sram_guard.ld).
+target_compile_definitions(${COMPONENT_LIB} PRIVATE OFT_MAX_SAMPLES=32)
+
 # For INFO only, so a new commit recompiles just commands.c (FW_COMMIT_DATE is
 # set in the project's CMakeLists.txt).
 set_source_files_properties(proto/commands.c PROPERTIES

@@ -107,7 +107,8 @@ void metrics_level(const metrics_input_t *in, uint32_t floor_raw, int32_t offset
  * (chi-squared with 2*segments degrees of freedom, scaled). */
 float metrics_percentile_bias(unsigned segments, float q);
 /* log2(1 + i/256) - i/256, in 1/65536: filled by metrics_init(). */
-extern uint16_t metrics_log2_dev[257];
+/* Heap-allocated at metrics init (static RAM below the RF bank is full, sram_guard.ld). */
+extern uint16_t *metrics_log2_dev;
 void metrics_init(void);
 
 /* 40 log10(v) * 256: four times the dB of a power v, i.e. level codes

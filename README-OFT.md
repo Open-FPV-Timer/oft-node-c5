@@ -14,6 +14,7 @@ Upstream's scanner, RotorHazard mode and monitor mode are unchanged and still wo
 | `scan/metrics.{c,h}` | `metrics_level_t` gains `rssi_q8` / `floor_q8` (level code × 256) so OFT gets 1/1024 dB resolution instead of 0.25 dB codes. |
 | `scan/scanner.{c,h}` | `scan_config_t.oft`; `do_levels` feeds `oft_feed` per channel per hop. |
 | `proto/commands.c` | `PROTO_OFT`: the first CRC-valid Plan or Ping frame from the host switches the device into OFT mode until reboot. |
+| `metrics.c`, `commands.c` | `metrics_log2_dev` and `other_cfg` moved to the heap: the C5's static RAM must stay below the RF capture bank (`sram_guard.ld`) and upstream ends 40 bytes under it. OFT buffers are heap-allocated for the same reason; `oft_feed` and the SYNC ISR stay in flash. |
 
 Mode switching needs no command: boot in RotorHazard mode as before; a Timer speaking the
 Node link is recognised by its frames. `PROTOCOL?` answers `PROTOCOL OFT`.
@@ -46,5 +47,5 @@ ESP32-C5 pinout** and the HBOM before wiring; change the define if needed.
 
 ## Status (2026-11-08)
 
-Compiles with IDF 5.5.5 in Docker (5.5.1 lacks a private PHY symbol upstream uses); not yet run on hardware. Open items: Identify (status LED),
+Builds with IDF 5.5.5 in Docker and passes upstream's RF-bank SRAM guard with ~600 B to spare (5.5.1 lacks a private PHY symbol upstream uses); not yet run on hardware. `firmware/build-c5/widscan58.bin` is the app image. Open items: Identify (status LED),
 C5 temperature in Status, post-hop sample flag, NVS-configurable SYNC pin, hop-error count.

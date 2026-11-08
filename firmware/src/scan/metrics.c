@@ -9,9 +9,10 @@
 #define IRAM_ATTR /* host builds (test/) */
 #endif
 
-uint16_t metrics_log2_dev[257];
+uint16_t *metrics_log2_dev;
 
 void metrics_init(void) {
+    if (!metrics_log2_dev) metrics_log2_dev = malloc(257 * sizeof(*metrics_log2_dev));
     for (unsigned i = 0; i <= 256; i++)
         metrics_log2_dev[i] = (uint16_t)lrint((log2(1.0 + i / 256.0) - i / 256.0) * 65536.0);
 }

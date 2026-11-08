@@ -89,7 +89,7 @@ static void send_profile(const scan_config_t *c) {
 typedef enum { PROTO_RH, PROTO_MONITOR, PROTO_OFT } proto_t;
 static proto_t proto = PROTO_RH;
 /* Scan configuration of the protocol not in use, restored on a switch. */
-static scan_config_t other_cfg;
+static scan_config_t *other_cfg; /* heap: static RAM below the RF bank is full (sram_guard.ld) */
 
 /* FFT sets the capture to four FFT segments, in both modes. In monitor mode
  * CAPN and SEGMENTS can still override it (debug); RotorHazard mode refuses
@@ -196,8 +196,8 @@ static void set_proto(proto_t p) {
     if (p == proto) {
         next = cur;
     } else {
-        next = other_cfg;
-        other_cfg = cur;
+        next = *other_cfg;
+        *other_cfg = cur;
     }
     if (p == PROTO_RH) {
         uint8_t was = next.metrics_mode;
@@ -721,7 +721,8 @@ void commands_task_start(void) {
     /* Boot in RotorHazard mode (rh_init has run); monitor mode starts from the defaults. */
     scan_config_t c;
     scanner_get_config(&c);
-    other_cfg = c;
+    other_cfg = malloc(sizeof(*other_cfg));
+    *other_cfg = c;
     rh_defaults(&c);
     timer_saved_from(&timer_builtin, &c);
     timer_saved = timer_builtin;

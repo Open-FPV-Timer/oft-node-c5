@@ -1,5 +1,6 @@
 /* OFT Node mode. GPL-3.0-or-later. See oft.h. */
 #include "oft.h"
+#include <stdlib.h>
 #include <string.h>
 #include "driver/gpio.h"
 #include "esp_mac.h"
@@ -31,18 +32,23 @@ typedef struct {
     uint8_t flags;
 } batch_t;
 
+_Static_assert(BATCH_N <= OFT_MAX_SAMPLES, "batch must fit the codec's sample cap");
+
+/* Buffers live on the heap: the C5's static sections must stay below the RF capture SRAM
+ * bank (radio/c5/sram_guard.ld), and upstream already sits close to it. */
+typedef struct { bool mapped; uint16_t freq_mhz; } seat_t;
 static portMUX_TYPE mux = portMUX_INITIALIZER_UNLOCKED;
-static batch_t batch[PROFILE_MAX_CHANNELS];
-static struct { bool mapped; uint16_t freq_mhz; } seat[PROFILE_MAX_CHANNELS];
-static oft_decoder_t dec, sniff_dec;
-static oft_msg_t pending;
+static batch_t *batch;                 /* [PROFILE_MAX_CHANNELS] */
+static seat_t *seat;                   /* [PROFILE_MAX_CHANNELS] */
+static oft_decoder_t *dec;             /* one decoder: sniffing and OFT mode read the same stream */
+static oft_msg_t *pending;
 static bool have_pending;
 static int64_t next_status_us;
 static uint64_t chip_id;
 static uint32_t hop_errors;
 
 /* SYNC edges: timestamps from the ISR, drained by oft_poll. */
-static volatile int64_t sync_ts[SYNC_RING];
+static volatile int64_t *sync_ts;      /* [SYNC_RING] */
 static volatile uint32_t sync_wr, sync_rd, sync_seq;
 
 /* Level code x256 -> 0.1 dB relative: code 255 is 0 dBFS, 0.25 dB per code. */
@@ -89,7 +95,9 @@ static void send_status(void) {
     send(&m);
 }
 
-static void IRAM_ATTR sync_isr(void *arg) {
+/* Not IRAM: a flash-cache miss costs a microsecond or two of edge timestamp jitter, well
+ * inside the clock budget, and the C5's static RAM below the RF bank is nearly full. */
+static void sync_isr(void *arg) {
     (void)arg;
     uint32_t w = sync_wr;
     if (w - sync_rd < SYNC_RING) {
@@ -103,10 +111,13 @@ esp_err_t oft_init(void) {
     esp_efuse_mac_get_default(mac);
     chip_id = 0;
     for (int i = 0; i < 6; i++) chip_id = (chip_id << 8) | mac[i];
-    oft_decoder_init(&dec);
-    oft_decoder_init(&sniff_dec);
-    memset(batch, 0, sizeof(batch));
-    memset(seat, 0, sizeof(seat));
+    batch = calloc(PROFILE_MAX_CHANNELS, sizeof(*batch));
+    seat = calloc(PROFILE_MAX_CHANNELS, sizeof(*seat));
+    dec = calloc(1, sizeof(*dec));
+    pending = calloc(1, sizeof(*pending));
+    sync_ts = calloc(SYNC_RING, sizeof(*sync_ts));
+    if (!batch || !seat || !dec || !pending || !sync_ts) return ESP_ERR_NO_MEM;
+    oft_decoder_init(dec);
 #if OFT_SYNC_GPIO >= 0
     gpio_config_t io = {
         .pin_bit_mask = 1ULL << OFT_SYNC_GPIO,
@@ -117,7 +128,7 @@ esp_err_t oft_init(void) {
     };
     esp_err_t e = gpio_config(&io);
     if (e != ESP_OK) return e;
-    e = gpio_install_isr_service(ESP_INTR_FLAG_IRAM);
+    e = gpio_install_isr_service(0);
     if (e != ESP_OK && e != ESP_ERR_INVALID_STATE) return e;
     e = gpio_isr_handler_add(OFT_SYNC_GPIO, sync_isr, NULL);
     if (e != ESP_OK) return e;
@@ -129,7 +140,7 @@ esp_err_t oft_init(void) {
 
 static void apply_plan_msg(const oft_plan_t *p) {
     portENTER_CRITICAL(&mux);
-    memset(seat, 0, sizeof(seat));
+    memset(seat, 0, PROFILE_MAX_CHANNELS * sizeof(*seat));
     for (unsigned i = 0; i < p->n; i++) {
         if (p->seats[i].seat >= PROFILE_MAX_CHANNELS) continue;
         seat[p->seats[i].seat].mapped = true;
@@ -192,7 +203,9 @@ static void send_batch(unsigned j, const batch_t *b) {
     send(&m);
 }
 
-IRAM_ATTR void oft_feed(unsigned ch, int64_t t_us, int32_t rssi_q8, int32_t floor_q8, bool saturated) {
+/* Called from the scanner's IRAM hop loop, but kept in flash: the sample is already
+ * timestamped (cap_mid), so a cache miss here costs hop rate, not timing accuracy. */
+void oft_feed(unsigned ch, int64_t t_us, int32_t rssi_q8, int32_t floor_q8, bool saturated) {
     if (ch >= PROFILE_MAX_CHANNELS) return;
     bool full = false;
     batch_t copy;
@@ -237,27 +250,26 @@ static void handle(const oft_msg_t *m, int64_t now_us) {
 bool oft_sniff(uint8_t b, int64_t now_us) {
     (void)now_us;
     oft_msg_t m;
-    if (!oft_decoder_push(&sniff_dec, b, &m)) return false;
+    if (!oft_decoder_push(dec, b, &m)) return false;
     if (m.type != OFT_MSG_PLAN && m.type != OFT_MSG_PING) return false;
-    pending = m;
+    *pending = m;
     have_pending = true;
     return true;
 }
 
 void oft_enter(int64_t now_us) {
-    oft_decoder_init(&dec);
-    oft_decoder_init(&sniff_dec);
+    oft_decoder_init(dec);
     send_hello();
     if (have_pending) {
         have_pending = false;
-        handle(&pending, now_us);
+        handle(pending, now_us);
     }
     next_status_us = now_us + STATUS_PERIOD_US;
 }
 
 void oft_rx(uint8_t b, int64_t now_us) {
     oft_msg_t m;
-    if (oft_decoder_push(&dec, b, &m)) handle(&m, now_us);
+    if (oft_decoder_push(dec, b, &m)) handle(&m, now_us);
 }
 
 void oft_poll(int64_t now_us) {
