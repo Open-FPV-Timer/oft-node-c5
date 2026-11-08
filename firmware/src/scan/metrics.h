@@ -90,6 +90,8 @@ typedef struct {
     uint8_t rssi;            /* RSSI window power, level code: dBFS = code / 4 - 63.75 */
     uint8_t snr;             /* (S+N)/N, dB x 4; 0 without a floor */
     uint8_t flags;           /* CHF_DC_IN_SEARCH, CHF_EDGE; with a floor, CHF_SIGNAL */
+    int32_t rssi_q8;         /* the RSSI level code x 256 (unclamped), for finer consumers (OFT) */
+    int32_t floor_q8;        /* noise in the RSSI window as a level code x 256; 0 without a floor */
 } metrics_level_t;
 
 /* Robust noise floor: q-th percentile of valid in-passband bins, in units of

@@ -25,5 +25,10 @@ endif()
 # not every component in ESP-IDF. __pio_env is PlatformIO's dummy component,
 # which its builder needs. A new IDF dependency goes in src/CMakeLists.txt's
 # REQUIRES.
+# Plain idf.py (e.g. the espressif/idf Docker image) does not know PlatformIO's src/
+# component convention: point it at the component directly. PlatformIO sets this itself.
+if(NOT DEFINED ENV{PLATFORMIO_BUILD_FLAGS} AND NOT DEFINED EXTRA_COMPONENT_DIRS)
+    set(EXTRA_COMPONENT_DIRS ${CMAKE_CURRENT_LIST_DIR}/src)
+endif()
 set(COMPONENTS src __pio_env)
 project(widscan58)

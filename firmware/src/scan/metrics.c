@@ -253,11 +253,15 @@ IRAM_ATTR void metrics_level(const metrics_input_t *in, uint32_t floor_raw, int3
     if ((uint32_t)abs(offset_hz) + in->rssi_hz > in->passband_hz) out->flags |= CHF_EDGE;
     const int32_t rssi_q8 = metrics_code_q8(sum);
     out->rssi = sum ? metrics_code_u8(rssi_q8 + in->level_q8) : 0;
+    out->rssi_q8 = sum ? rssi_q8 + in->level_q8 : 0;
     out->snr = 0;
+    out->floor_q8 = 0;
     if (!floor_raw || !sum) return;
     /* Noise in the window: the mean noise per bin times its bins (the ENBW
      * and scale cancel in the ratio). */
-    const int32_t snr_q8 = rssi_q8 - metrics_code_q8((uint64_t)floor_raw * total) - in->floor_bias_q8;
+    const int32_t noise_q8 = metrics_code_q8((uint64_t)floor_raw * total) + in->floor_bias_q8;
+    out->floor_q8 = noise_q8 + in->level_q8;
+    const int32_t snr_q8 = rssi_q8 - noise_q8;
     out->snr = metrics_code_u8(snr_q8);
     if (snr_q8 >= in->signal_q8) out->flags |= CHF_SIGNAL;
 }

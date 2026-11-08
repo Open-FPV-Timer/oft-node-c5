@@ -31,6 +31,7 @@
 #include "gpio_out.h"
 #include "link.h"
 #include "metrics.h"
+#include "oft.h"
 #include "radio.h"
 #include "scanner.h"
 #include "psd.h"
@@ -85,7 +86,7 @@ static void send_profile(const scan_config_t *c) {
     reply_send();
 }
 
-typedef enum { PROTO_RH, PROTO_MONITOR } proto_t;
+typedef enum { PROTO_RH, PROTO_MONITOR, PROTO_OFT } proto_t;
 static proto_t proto = PROTO_RH;
 /* Scan configuration of the protocol not in use, restored on a switch. */
 static scan_config_t other_cfg;
@@ -105,6 +106,7 @@ static void set_fft(scan_config_t *c, unsigned nfft) {
  * gain sweep) and lap.c's 255 ms median filter. */
 static void rh_defaults(scan_config_t *c) {
     c->rh = true;
+    c->oft = false;
     c->gain_mode = RADIO_GAIN_MANUAL;
     c->gain = 45;
     c->metrics_mode = METRICS_RSSI;
@@ -200,13 +202,27 @@ static void set_proto(proto_t p) {
     if (p == PROTO_RH) {
         uint8_t was = next.metrics_mode;
         timer_saved_apply(&next, &timer_saved);
+        next.rh = true;
+        next.oft = false;
         if (next.metrics_mode != was) rh_reset_levels(); /* RSSI and SNR codes don't compare */
         rh_host_reset(esp_timer_get_time());
         rh_apply_plan(&next); /* the seats may have changed meanwhile */
         link_set_streaming(false);
         link_flush();
+    } else if (p == PROTO_OFT) {
+        /* Lap-timer settings (gain, FFT, LO plan) as RotorHazard mode, but SNR metrics so
+         * every hop carries a noise floor, and the OFT seats as the channel plan. */
+        timer_saved_apply(&next, &timer_saved);
+        next.metrics_mode = METRICS_SNR;
+        next.rh = false;
+        next.oft = true;
+        oft_apply_plan(&next);
+        link_set_streaming(false);
+        link_flush();
     } else {
         next.metrics_mode = METRICS_FULL;
+        next.rh = false;
+        next.oft = false;
     }
     scanner_set_config(&next);
     if (p == PROTO_MONITOR) link_set_streaming(true);
@@ -384,7 +400,7 @@ static void handle(char *line) {
     } else if (!strcmp(line, "PLATEAU?")) {
         link_printf("PLATEAU %u\n", rh_get_plateau());
     } else if (!strcmp(line, "PROTOCOL?")) {
-        link_printf("PROTOCOL %s\n", proto == PROTO_RH ? "RH" : "MONITOR");
+        link_printf("PROTOCOL %s\n", proto == PROTO_RH ? "RH" : proto == PROTO_OFT ? "OFT" : "MONITOR");
     } else if (!strcmp(line, "PROTOCOL RH") || !strcmp(line, "PROTOCOL MONITOR")) {
         set_proto(line[9] == 'R' ? PROTO_RH : PROTO_MONITOR);
         link_text("OK\n");
@@ -644,6 +660,7 @@ static void commands_task(void *arg) {
             rh_poll(INT64_MAX); /* and a RotorHazard write in progress */
         }
         if (proto == PROTO_RH) rh_host_check(now);
+        if (proto == PROTO_OFT) oft_poll(now);
         if (n <= 0) {
             if (probe) {
                 probe = false;
@@ -660,6 +677,20 @@ static void commands_task(void *arg) {
         }
         for (int i = 0; i < n; i++) {
             uint8_t b = buf[i];
+            if (proto == PROTO_OFT) { /* a Timer owns the link; nothing else is parsed */
+                oft_rx(b, now);
+                last_rx = now;
+                continue;
+            }
+            if (oft_sniff(b, now)) { /* a Timer spoke: switch to OFT mode for good (until reboot) */
+                probe = text = overflow = false;
+                used = 0;
+                rh_poll(INT64_MAX);
+                set_proto(PROTO_OFT);
+                oft_enter(now);
+                last_rx = now;
+                continue;
+            }
             if (proto == PROTO_MONITOR) {
                 if (probe) { /* more followed: it was just a byte of a line */
                     probe = false;

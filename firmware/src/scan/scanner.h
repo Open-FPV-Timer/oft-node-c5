@@ -14,6 +14,7 @@ typedef struct {
     plan_mode_t mode;
     bool running;
     bool rh;                 /* RotorHazard mode: levels feed the seats (rh.h), no frames */
+    bool oft;                /* OFT Node mode: levels stream as Samples frames (oft.h), no frames */
     /* Acquisition */
     uint16_t capture_samples;
     uint16_t nfft;

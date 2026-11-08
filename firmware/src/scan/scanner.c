@@ -15,6 +15,7 @@
 #include "metrics.h"
 #include "psd.h"
 #include "fft_eval.h"
+#include "oft.h"
 #include "rh.h"
 #include "scanner.h"
 
@@ -201,6 +202,7 @@ static void apply_config(void) {
     sp->floor_bias_q8 = (int32_t)lrintf(METRICS_LEVEL_PER_DB * 10.0f * log10f(sp->floor_bias) * 256.0f);
     sp->centroid_ratio = powf(10.0f, sp->cfg.centroid_db / 10.0f);
     if (sp->cfg.rh) rh_plan_applied();
+    if (sp->cfg.oft) oft_plan_applied();
 }
 
 /* log2(1 + i/256) * 256, for spectrum codes without per-bin float math. */
@@ -324,6 +326,7 @@ static void do_levels(metrics_input_t *in, const psd_result_t *psd, const plan_h
         }
         out[j] = (frame_level_t){.id = hop->ch[j], .flags = m.flags, .rssi = m.rssi, .snr = m.snr};
         if (c->rh) rh_feed(hop->ch[j], cap_mid, snr ? m.snr : m.rssi);
+        else if (c->oft) oft_feed(hop->ch[j], cap_mid, m.rssi_q8, m.floor_q8, psd->saturated != 0);
     }
     int64_t tm1 = esp_timer_get_time();
     int64_t t3 = finish_hop(psd, hop, t2, tm0, tm1);
@@ -344,7 +347,7 @@ static void do_levels(metrics_input_t *in, const psd_result_t *psd, const plan_h
         .floor_bin = floor_raw ? metrics_code_u8((metrics_code_q8(floor_raw) + sp->floor_bias_q8) / 2 + spec_bin_q8) : 0,
         .nch = hop->nch,
     };
-    if (!c->rh) link_frame(FRAME_LEVELS, &h, sizeof(h), out, hop->nch * sizeof(frame_level_t), 0);
+    if (!c->rh && !c->oft) link_frame(FRAME_LEVELS, &h, sizeof(h), out, hop->nch * sizeof(frame_level_t), 0);
     hop_stats(t0, t1, t2, t3);
 }
 

@@ -5,6 +5,8 @@ set(sources
     "proto/link.c"
     "proto/commands.c"
     "proto/rh.c"
+    "proto/oft_frame.c"
+    "proto/oft.c"
     "scan/profile.c"
     "scan/planner.c"
     "scan/metrics.c"
@@ -35,7 +37,7 @@ idf_component_register(SRCS ${sources}
     INCLUDE_DIRS ${includes}
     LDFRAGMENTS ${ldfragments}
     REQUIRES esp_app_format esp_driver_gpio esp_driver_rmt esp_driver_uart esp_driver_usb_serial_jtag esp_wifi esp_phy esp_timer esp_hw_support
-             nvs_flash esp_rom espressif__esp-dsp)
+             nvs_flash esp_rom esp_ringbuf espressif__esp-dsp)
 
 # For INFO only, so a new commit recompiles just commands.c (FW_COMMIT_DATE is
 # set in the project's CMakeLists.txt).
