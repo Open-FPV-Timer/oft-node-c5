@@ -39,6 +39,15 @@ idf_component_register(SRCS ${sources}
     REQUIRES esp_app_format esp_driver_gpio esp_driver_rmt esp_driver_uart esp_driver_usb_serial_jtag esp_wifi esp_phy esp_timer esp_hw_support
              nvs_flash esp_rom esp_ringbuf espressif__esp-dsp)
 
+# The target macro the sources test (#if RX_TARGET_C5). PlatformIO passes the same value in
+# build_flags; plain idf.py builds (tools/docker-build.sh) get it only from here. Without it a
+# C5 build takes the S3's buffer sizes, which do not fit the C5's heap.
+if(IDF_TARGET STREQUAL "esp32c5")
+    target_compile_definitions(${COMPONENT_LIB} PRIVATE RX_TARGET_C5=1)
+elseif(IDF_TARGET STREQUAL "esp32s3")
+    target_compile_definitions(${COMPONENT_LIB} PRIVATE RX_TARGET_S3=1)
+endif()
+
 # OFT Node mode: 32-sample batches, so the codec's buffers stay small (static RAM is tight
 # under the RF capture bank, see radio/c5/sram_guard.ld).
 target_compile_definitions(${COMPONENT_LIB} PRIVATE OFT_MAX_SAMPLES=32)

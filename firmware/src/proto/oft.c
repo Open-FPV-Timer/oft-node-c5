@@ -51,9 +51,11 @@ static uint32_t hop_errors;
 static volatile int64_t *sync_ts;      /* [SYNC_RING] */
 static volatile uint32_t sync_wr, sync_rd, sync_seq;
 
-/* Level code x256 -> 0.1 dB relative: code 255 is 0 dBFS, 0.25 dB per code. */
+/* Level code x256 -> 0.1 dB relative: code 255 is 0 dBFS, 0.25 dB per code, so one code is
+ * 2.5 units of 0.1 dB: (q8 / 256 - 255) * 2.5. Codes are unclamped here, so a signal above
+ * the 8-bit range reads above 0. */
 static int16_t q8_to_ddb(int32_t q8) {
-    int32_t v = (int32_t)(((int64_t)(q8 - 255 * 256) * 25) / 256);
+    int32_t v = (int32_t)(((int64_t)(q8 - 255 * 256) * 25) / 2560);
     if (v > INT16_MAX) v = INT16_MAX;
     if (v < INT16_MIN) v = INT16_MIN;
     return (int16_t)v;
