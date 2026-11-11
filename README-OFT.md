@@ -5,6 +5,20 @@ A fork of [widscan58](https://github.com/CapnBry/widscan58) (GPL-3.0-or-later; u
 OFT Timer over the host UART using the Node link (oft-spec §5). Detection runs on the Timer.
 Upstream's scanner, RotorHazard mode and monitor mode are unchanged and still work.
 
+## Acknowledgements
+
+This firmware is [widscan58](https://github.com/CapnBry/widscan58) by CapnBry with an OFT
+mode added. Everything that makes the radio work is theirs and, underneath,
+[esp-sdr](https://github.com/ESPARGOS/esp-sdr)'s and [C5VRX](https://github.com/Twotoz/C5VRX)'s;
+see the Credits in [README.md](README.md).
+
+The idea of timing FPV laps with an ESP32-C5 comes from Louis Hitchcock's
+[FPVGateC5MK](https://github.com/LouisHitchcock/FPVGateC5MK),
+[FPVGateC5RX](https://github.com/LouisHitchcock/FPVGateC5RX) and
+[FPVGate](https://github.com/LouisHitchcock/FPVGate). Their licence (CC BY-NC-SA 4.0) does
+not combine with GPL, so the OFT mode uses none of their code. The full list of projects
+OFT draws on is in the [oft README](https://github.com/Open-FPV-Timer/oft#acknowledgements).
+
 ## What the OFT mode adds
 
 | File | Role |
