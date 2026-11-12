@@ -11,6 +11,10 @@
 #include "oft_frame.h"
 #include "profile.h"
 #include "radio.h"
+#include "soc/soc_caps.h"
+#if SOC_TEMP_SENSOR_SUPPORTED
+#include "driver/temperature_sensor.h"
+#endif
 
 #define OFT_FW_MAJOR 0
 #define OFT_FW_MINOR 1
@@ -84,12 +88,34 @@ static void send_hello(void) {
     send(&m);
 }
 
+/* Chip temperature in 0.1 degC, or OFT_TEMP_UNKNOWN. The sensor is set up on first use, so it
+ * costs nothing outside OFT mode. Runs in the command task, never in the capture path. */
+#define OFT_TEMP_UNKNOWN INT16_MIN
+static int16_t read_temp_dc(void) {
+#if SOC_TEMP_SENSOR_SUPPORTED
+    static temperature_sensor_handle_t tsens;
+    static bool tried;
+    if (!tried) {
+        tried = true;
+        temperature_sensor_config_t cfg = TEMPERATURE_SENSOR_CONFIG_DEFAULT(20, 100);
+        if (temperature_sensor_install(&cfg, &tsens) != ESP_OK) tsens = NULL;
+        else if (temperature_sensor_enable(tsens) != ESP_OK) {
+            temperature_sensor_uninstall(tsens);
+            tsens = NULL;
+        }
+    }
+    float c;
+    if (tsens && temperature_sensor_get_celsius(tsens, &c) == ESP_OK) return (int16_t)(c * 10.0f);
+#endif
+    return OFT_TEMP_UNKNOWN;
+}
+
 static void send_status(void) {
     unsigned gain;
     radio_gain_mode_t gm = radio_get_gain(&gain);
     oft_msg_t m = {.type = OFT_MSG_STATUS};
     m.u.status = (oft_status_t){
-        .temp_dc = 0, /* TODO: C5 temperature sensor */
+        .temp_dc = read_temp_dc(),
         .hop_errors = (uint16_t)hop_errors,
         .overruns = (uint16_t)link_drops(),
         .gain_index = gm == RADIO_GAIN_HARDWARE ? OFT_GAIN_AUTO : (uint8_t)gain,

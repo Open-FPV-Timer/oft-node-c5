@@ -36,7 +36,7 @@ endif()
 idf_component_register(SRCS ${sources}
     INCLUDE_DIRS ${includes}
     LDFRAGMENTS ${ldfragments}
-    REQUIRES esp_app_format esp_driver_gpio esp_driver_rmt esp_driver_uart esp_driver_usb_serial_jtag esp_wifi esp_phy esp_timer esp_hw_support
+    REQUIRES esp_app_format esp_driver_gpio esp_driver_rmt esp_driver_uart esp_driver_usb_serial_jtag esp_wifi esp_phy esp_timer esp_hw_support esp_driver_tsens
              nvs_flash esp_rom esp_ringbuf espressif__esp-dsp)
 
 # The target macro the sources test (#if RX_TARGET_C5). PlatformIO passes the same value in
