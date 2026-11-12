@@ -48,6 +48,8 @@ static oft_decoder_t *dec;             /* one decoder: sniffing and OFT mode rea
 static oft_msg_t *pending;
 static bool have_pending;
 static int64_t next_status_us;
+/* The Timer has sent a plan since OFT mode was entered: it has seen our Hello. */
+static bool got_plan;
 static uint64_t chip_id;
 static uint32_t hop_errors;
 
@@ -167,6 +169,7 @@ esp_err_t oft_init(void) {
 /* ---- plan ---- */
 
 static void apply_plan_msg(const oft_plan_t *p) {
+    got_plan = true;
     portENTER_CRITICAL(&mux);
     memset(seat, 0, PROFILE_MAX_CHANNELS * sizeof(*seat));
     for (unsigned i = 0; i < p->n; i++) {
@@ -287,6 +290,7 @@ bool oft_sniff(uint8_t b, int64_t now_us) {
 
 void oft_enter(int64_t now_us) {
     oft_decoder_init(dec);
+    got_plan = false;
     send_hello();
     if (have_pending) {
         have_pending = false;
@@ -321,6 +325,10 @@ void oft_poll(int64_t now_us) {
         }
     }
     if (now_us >= next_status_us) {
+        /* The one Hello sent on entering OFT mode can be lost (the Timer's decoder may still
+         * be chewing on boot text). A Timer answers a Hello with a Plan, so repeat it until
+         * one arrives. */
+        if (!got_plan) send_hello();
         send_status();
         next_status_us = now_us + STATUS_PERIOD_US;
     }
