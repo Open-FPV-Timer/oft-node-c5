@@ -11,13 +11,17 @@
 #include "esp_err.h"
 #include "scanner.h"
 
-/* SYNC input from the Timer. Default: XIAO ESP32-C5 D2 = GPIO? -- check the XIAO pinout and
- * the HBOM; any free input works. Set to -1 to disable. */
+/* SYNC input from the Timer: the default pin. The pin in use is a GPIO setting
+ * (GPIO <n> SYNC, gpio_out.c), so a board wired differently needs no build of its own.
+ * GPIO2 is the MTMS pad on the back of a XIAO ESP32-C5. -1: none by default. */
 #ifndef OFT_SYNC_GPIO
 #define OFT_SYNC_GPIO 2
 #endif
 
 esp_err_t oft_init(void);
+/* Latch SYNC edges on this pin (input, pulled down, rising edge), or on none (-1). Before
+ * oft_init the pin is only noted; oft_init starts it. Called by gpio_out.c. */
+esp_err_t oft_sync_pin(int gpio);
 
 /* Bytes from the host while in another mode: true when a CRC-valid OFT frame that a Timer
  * would send first (Plan or Ping) has arrived. The frame is kept and acted on by oft_enter. */

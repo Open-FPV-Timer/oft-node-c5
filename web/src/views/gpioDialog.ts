@@ -1,7 +1,7 @@
 // GPIO Configure (menu): pins the device drives at startup, low or high, such
-// as an antenna switch, the pins of its UART host port (TX and RX) and its
-// status LEDs (LED and WS2812); one pin each of those: choosing one moves it
-// there. A change takes effect at once (GPIO <n> ...); Save (GPIO SAVE) makes
+// as an antenna switch, the pins of its UART host port (TX and RX), its
+// status LEDs (LED and WS2812) and the SYNC input an OFT Timer pulses; one pin
+// each of those: choosing one moves it there. A change takes effect at once (GPIO <n> ...); Save (GPIO SAVE) makes
 // the settings in effect the ones the device starts with; Defaults (GPIO RESET)
 // puts back the built-in ones, now and at startup. Each pin shows its setting,
 // not its live level. The pins are on tabs of PINS_PER_TAB.
@@ -18,17 +18,19 @@ const LABEL: Record<GpioSetting, string> = {
   RX: "RX",
   LED: "LED",
   WS2812: "WS2812",
+  SYNC: "SYNC",
   RESERVED: "Reserved",
 };
-const CHOICES: GpioSetting[] = ["NONE", "LOW", "HIGH", "TX", "RX", "LED", "WS2812"];
+const CHOICES: GpioSetting[] = ["NONE", "LOW", "HIGH", "TX", "RX", "LED", "WS2812", "SYNC"];
 const TITLE: Partial<Record<GpioSetting, string>> = {
   TX: "UART transmit (to the host's RX)",
   RX: "UART receive (from the host's TX)",
   LED: "Status LED, lit when the pin is low",
   WS2812: "Status LED: one WS2812 on this pin",
+  SYNC: "Clock pulse input from an OFT Timer's SYNC wire",
 };
 // Marks the row of a pin with one of the single-pin roles.
-const ROLE_CLASS: Partial<Record<GpioSetting, string>> = { TX: "uart-tx", RX: "uart-rx", LED: "led", WS2812: "ws2812" };
+const ROLE_CLASS: Partial<Record<GpioSetting, string>> = { TX: "uart-tx", RX: "uart-rx", LED: "led", WS2812: "ws2812", SYNC: "sync" };
 const PINS_PER_TAB = 8;
 
 export class GpioDialog {
@@ -78,6 +80,11 @@ export class GpioDialog {
         "p",
         {},
         "LED and WS2812 show the status on one LED each.",
+      ),
+      el(
+        "p",
+        {},
+        "SYNC is the input for an OFT Timer's SYNC wire. It only matters when the device is a Node of an Open FPV Timer.",
       ),
       this.status,
       this.tabs,

@@ -4,7 +4,7 @@ import { gpioUnsaved, parseGpio } from "./gpio";
 
 describe("parseGpio", () => {
   it("reads each pin's setting in effect and saved", () => {
-    const pins = parseGpio('GPIO {"count":8,"active":"-LHxTRDW","saved":"-H-xT-D-"}');
+    const pins = parseGpio('GPIO {"count":9,"active":"-LHxTRDWS","saved":"-H-xT-D-S"}');
     expect(pins).toEqual([
       { n: 0, active: "NONE", saved: "NONE" },
       { n: 1, active: "LOW", saved: "HIGH" },
@@ -14,6 +14,7 @@ describe("parseGpio", () => {
       { n: 5, active: "RX", saved: "NONE" },
       { n: 6, active: "LED", saved: "LED" },
       { n: 7, active: "WS2812", saved: "NONE" },
+      { n: 8, active: "SYNC", saved: "SYNC" },
     ]);
     expect(gpioUnsaved(pins).map((p) => p.n)).toEqual([1, 2, 5, 7]);
   });

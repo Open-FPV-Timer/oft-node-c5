@@ -11,7 +11,8 @@
  * NVS entry, the least NVS can store; a word with no pin in use is erased.
  * The UART pins are key "uart", a u16 (TX << 8 | RX, 0xff none), erased while
  * they are the defaults. The LED pins are key "leds", the same way (LED << 8 |
- * WS2812), erased while there are none. */
+ * WS2812), erased while there are none. The OFT SYNC input (proto/oft.c) is
+ * key "sync", a u8 (0xff none), erased while it is the default. */
 #include <stdio.h>
 #include "driver/gpio.h"
 #include "esp_private/esp_gpio_reserve.h"
@@ -20,6 +21,7 @@
 #include "soc/gpio_sig_map.h"
 #include "soc/soc_caps.h"
 #include "gpio_out.h"
+#include "oft.h"
 #include "status_led.h"
 
 #define NVS_NAMESPACE "widscan58"
@@ -47,8 +49,15 @@
 #define UART_TX_DEFAULT PIN_NONE
 #define UART_RX_DEFAULT PIN_NONE
 #endif
+/* Default SYNC pin: the build's OFT_SYNC_GPIO (oft.h). */
+#if OFT_SYNC_GPIO >= 0
+#define SYNC_DEFAULT OFT_SYNC_GPIO
+#else
+#define SYNC_DEFAULT PIN_NONE
+#endif
 #define UART_KEY "uart"
 #define LEDS_KEY "leds"
+#define SYNC_KEY "sync"
 
 /* Outputs: bit n is GPIO n in use, and if so high. Masks, not per-pin bytes:
  * the C5's static RAM is nearly full (CLAUDE.md, scan loop in IRAM). */
@@ -56,9 +65,10 @@ typedef struct {
     uint64_t used, high;
     uint8_t tx, rx;   /* UART pins, PIN_NONE if unset */
     uint8_t led, ws;  /* status LED pins, likewise */
+    uint8_t sync;     /* OFT SYNC input, likewise */
 } pins_t;
-static pins_t active = {.tx = PIN_NONE, .rx = PIN_NONE, .led = PIN_NONE, .ws = PIN_NONE};
-static pins_t saved = {.tx = UART_TX_DEFAULT, .rx = UART_RX_DEFAULT, .led = PIN_NONE, .ws = PIN_NONE};
+static pins_t active = {.tx = PIN_NONE, .rx = PIN_NONE, .led = PIN_NONE, .ws = PIN_NONE, .sync = PIN_NONE};
+static pins_t saved = {.tx = UART_TX_DEFAULT, .rx = UART_RX_DEFAULT, .led = PIN_NONE, .ws = PIN_NONE, .sync = SYNC_DEFAULT};
 
 unsigned gpio_out_count(void) { return SOC_GPIO_PIN_COUNT; }
 
@@ -72,6 +82,7 @@ static gpio_out_t pin_get(const pins_t *p, unsigned n) {
     if (n == p->rx) return GPIO_OUT_RX;
     if (n == p->led) return GPIO_OUT_LED;
     if (n == p->ws) return GPIO_OUT_WS2812;
+    if (n == p->sync) return GPIO_OUT_SYNC;
     if (!(p->used & BIT64(n))) return GPIO_OUT_NONE;
     return p->high & BIT64(n) ? GPIO_OUT_HIGH : GPIO_OUT_LOW;
 }
@@ -83,10 +94,12 @@ static void pin_put(pins_t *p, unsigned n, gpio_out_t s) {
     if (p->rx == n) p->rx = PIN_NONE;
     if (p->led == n) p->led = PIN_NONE;
     if (p->ws == n) p->ws = PIN_NONE;
+    if (p->sync == n) p->sync = PIN_NONE;
     if (s == GPIO_OUT_TX) p->tx = (uint8_t)n;
     else if (s == GPIO_OUT_RX) p->rx = (uint8_t)n;
     else if (s == GPIO_OUT_LED) p->led = (uint8_t)n;
     else if (s == GPIO_OUT_WS2812) p->ws = (uint8_t)n;
+    else if (s == GPIO_OUT_SYNC) p->sync = (uint8_t)n;
     else if (s != GPIO_OUT_NONE) p->used |= BIT64(n);
     if (s == GPIO_OUT_HIGH) p->high |= BIT64(n);
 }
@@ -105,6 +118,7 @@ static void drive(unsigned n, gpio_out_t s) {
         return;
     }
     if (s == GPIO_OUT_WS2812) return; /* the RMT sets it up (status_led.c) */
+    if (s == GPIO_OUT_SYNC) return;   /* oft_sync_pin sets it up (oft.c) */
     if (s == GPIO_OUT_RX) {
         gpio_config_t c = {.pin_bit_mask = BIT64(n), .mode = GPIO_MODE_INPUT, .pull_up_en = GPIO_PULLUP_ENABLE};
         gpio_config(&c);
@@ -124,19 +138,29 @@ esp_err_t gpio_out_set(unsigned n, gpio_out_t s) {
     /* The LEDs let go of their pins first. */
     if (s == GPIO_OUT_LED || was == GPIO_OUT_LED) status_led_set_led(-1);
     if (s == GPIO_OUT_WS2812 || was == GPIO_OUT_WS2812) status_led_set_ws2812(-1);
+    /* So does SYNC: no edge interrupt on a pin about to change hands. */
+    if (s == GPIO_OUT_SYNC || was == GPIO_OUT_SYNC) oft_sync_pin(-1);
     /* One pin per role: the one it moves from goes back to unused. */
     if (s == GPIO_OUT_TX && active.tx != PIN_NONE) drive(active.tx, GPIO_OUT_NONE);
     if (s == GPIO_OUT_RX && active.rx != PIN_NONE) drive(active.rx, GPIO_OUT_NONE);
     if (s == GPIO_OUT_LED && active.led != PIN_NONE) drive(active.led, GPIO_OUT_NONE);
     if (s == GPIO_OUT_WS2812 && active.ws != PIN_NONE) drive(active.ws, GPIO_OUT_NONE);
+    if (s == GPIO_OUT_SYNC && active.sync != PIN_NONE) drive(active.sync, GPIO_OUT_NONE);
     /* No RX pin: an idle line, not whatever the matrix input had. */
     if (was == GPIO_OUT_RX) esp_rom_gpio_connect_in_signal(GPIO_MATRIX_CONST_ONE_INPUT, U0RXD_IN_IDX, false);
-    if (s == GPIO_OUT_WS2812 && was != GPIO_OUT_NONE) drive(n, GPIO_OUT_NONE);
+    if ((s == GPIO_OUT_WS2812 || s == GPIO_OUT_SYNC) && was != GPIO_OUT_NONE) drive(n, GPIO_OUT_NONE);
     drive(n, s);
     pin_put(&active, n, s);
     if (s == GPIO_OUT_LED) status_led_set_led((int)n);
     if (s == GPIO_OUT_WS2812) {
         esp_err_t e = status_led_set_ws2812((int)n);
+        if (e != ESP_OK) {
+            pin_put(&active, n, GPIO_OUT_NONE);
+            return e;
+        }
+    }
+    if (s == GPIO_OUT_SYNC) {
+        esp_err_t e = oft_sync_pin((int)n);
         if (e != ESP_OK) {
             pin_put(&active, n, GPIO_OUT_NONE);
             return e;
@@ -156,7 +180,7 @@ void gpio_out_init(void) {
     esp_rom_gpio_connect_in_signal(GPIO_MATRIX_CONST_ONE_INPUT, U0RXD_IN_IDX, false);
     nvs_handle_t h;
     if (nvs_open(NVS_NAMESPACE, NVS_READONLY, &h) != ESP_OK) {
-        apply_saved(); /* nothing saved yet: the default UART pins */
+        apply_saved(); /* nothing saved yet: the default UART and SYNC pins */
         return;
     }
     uint16_t u;
@@ -173,6 +197,11 @@ void gpio_out_init(void) {
     if (saved.led != PIN_NONE && (!gpio_out_allowed(saved.led) || saved.led == saved.tx || saved.led == saved.rx)) saved.led = PIN_NONE;
     if (saved.ws != PIN_NONE && (!gpio_out_allowed(saved.ws) || saved.ws == saved.tx || saved.ws == saved.rx || saved.ws == saved.led))
         saved.ws = PIN_NONE;
+    uint8_t b;
+    if (nvs_get_u8(h, SYNC_KEY, &b) == ESP_OK) saved.sync = b;
+    if (saved.sync != PIN_NONE && (!gpio_out_allowed(saved.sync) || saved.sync == saved.tx || saved.sync == saved.rx || saved.sync == saved.led ||
+                                   saved.sync == saved.ws))
+        saved.sync = PIN_NONE;
     for (unsigned w = 0; w < NWORDS; w++) {
         char key[8];
         uint64_t v;
@@ -181,6 +210,7 @@ void gpio_out_init(void) {
         for (unsigned k = 0; k < DIGITS_PER_WORD; k++, v /= 3) {
             unsigned n = w * DIGITS_PER_WORD + k;
             unsigned d = (unsigned)(v % 3);
+            /* An output saved on the SYNC pin takes it: only the default SYNC pin can meet one. */
             if (d && gpio_out_allowed(n) && n != saved.tx && n != saved.rx && n != saved.led && n != saved.ws) pin_put(&saved, n, (gpio_out_t)d);
         }
     }
@@ -224,6 +254,14 @@ esp_err_t gpio_out_save(void) {
             e = nvs_set_u16(h, LEDS_KEY, (uint16_t)(active.led << 8 | active.ws));
         }
     }
+    if (e == ESP_OK) {
+        if (active.sync == SYNC_DEFAULT) {
+            e = nvs_erase_key(h, SYNC_KEY);
+            if (e == ESP_ERR_NVS_NOT_FOUND) e = ESP_OK;
+        } else {
+            e = nvs_set_u8(h, SYNC_KEY, active.sync);
+        }
+    }
     if (e == ESP_OK) e = nvs_commit(h);
     nvs_close(h);
     if (e == ESP_OK) saved = active;
@@ -235,6 +273,7 @@ esp_err_t gpio_out_reset(void) {
         if (gpio_out_allowed(n))
             gpio_out_set(n, n == UART_TX_DEFAULT   ? GPIO_OUT_TX
                             : n == UART_RX_DEFAULT ? GPIO_OUT_RX
+                            : n == SYNC_DEFAULT    ? GPIO_OUT_SYNC
                                                    : GPIO_OUT_NONE);
     return gpio_out_save(); /* the defaults: every key erased */
 }

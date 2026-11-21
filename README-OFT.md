@@ -56,10 +56,12 @@ See upstream's `CLAUDE.md` for the C5 rev 1.0 USB-reset caveat and PlatformIO bu
 ## Wiring to the Timer
 
 Host UART = UART0 on XIAO **D6 (GPIO11) TX** and **D7 (GPIO12) RX**, 921600 8N1 (upstream's
-default). SYNC input: `OFT_SYNC_GPIO` in `oft.h`, default GPIO2 — **confirm against the XIAO
-ESP32-C5 pinout** and the HBOM before wiring; change the define if needed.
+default). SYNC input: default GPIO2, the MTMS pad on the back of the XIAO (`OFT_SYNC_GPIO`
+in `oft.h`). Like the UART pins it is a GPIO setting: `GPIO <n> SYNC` then `GPIO SAVE`, or
+GPIO Configure in the web UI, moves it to another pin (for example `GPIO 8 SYNC` for
+header pin D8) with no rebuild.
 
 ## Status (2026-11-08)
 
 Builds with IDF 5.5.5 in Docker and passes upstream's RF-bank SRAM guard with ~600 B to spare (5.5.1 lacks a private PHY symbol upstream uses); not yet run on hardware. `firmware/build-c5/widscan58.bin` is the app image. Open items: Identify (status LED),
-C5 temperature in Status, post-hop sample flag, NVS-configurable SYNC pin, hop-error count.
+C5 temperature in Status, post-hop sample flag, hop-error count.

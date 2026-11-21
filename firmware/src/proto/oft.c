@@ -56,6 +56,8 @@ static uint32_t hop_errors;
 /* SYNC edges: timestamps from the ISR, drained by oft_poll. */
 static volatile int64_t *sync_ts;      /* [SYNC_RING] */
 static volatile uint32_t sync_wr, sync_rd, sync_seq;
+static int8_t sync_gpio = -1;          /* the SYNC pin, or -1 (oft_sync_pin) */
+static bool sync_on;                   /* its edge interrupt is running */
 
 /* Level code x256 -> 0.1 dB relative: code 255 is 0 dBFS, 0.25 dB per code, so one code is
  * 2.5 units of 0.1 dB: (q8 / 256 - 255) * 2.5. Codes are unclamped here, so a signal above
@@ -85,7 +87,7 @@ static void send_hello(void) {
         .freq_min_mhz = (uint16_t)(profile_equiv_khz(p, p->tune_lo_khz) / 1000.0 + 0.5),
         .freq_max_mhz = (uint16_t)(profile_equiv_khz(p, p->tune_hi_khz) / 1000.0 + 0.5),
         .max_seats = PROFILE_MAX_CHANNELS,
-        .features = (OFT_SYNC_GPIO >= 0 ? OFT_FEAT_SYNC : 0) | OFT_FEAT_DFU,
+        .features = (sync_gpio >= 0 ? OFT_FEAT_SYNC : 0) | OFT_FEAT_DFU,
     };
     send(&m);
 }
@@ -136,6 +138,30 @@ static void sync_isr(void *arg) {
     }
 }
 
+esp_err_t oft_sync_pin(int gpio) {
+    if (sync_on) {
+        gpio_isr_handler_remove((gpio_num_t)sync_gpio);
+        sync_on = false;
+    }
+    sync_gpio = (int8_t)gpio;
+    if (gpio < 0 || !sync_ts) return ESP_OK; /* none, or oft_init starts it */
+    gpio_config_t io = {
+        .pin_bit_mask = 1ULL << gpio,
+        .mode = GPIO_MODE_INPUT,
+        .pull_up_en = GPIO_PULLUP_DISABLE,
+        .pull_down_en = GPIO_PULLDOWN_ENABLE,
+        .intr_type = GPIO_INTR_POSEDGE,
+    };
+    esp_err_t e = gpio_config(&io);
+    if (e != ESP_OK) return e;
+    e = gpio_install_isr_service(0);
+    if (e != ESP_OK && e != ESP_ERR_INVALID_STATE) return e;
+    e = gpio_isr_handler_add((gpio_num_t)gpio, sync_isr, NULL);
+    if (e != ESP_OK) return e;
+    sync_on = true;
+    return ESP_OK;
+}
+
 esp_err_t oft_init(void) {
     uint8_t mac[6] = {0};
     esp_efuse_mac_get_default(mac);
@@ -148,22 +174,7 @@ esp_err_t oft_init(void) {
     sync_ts = calloc(SYNC_RING, sizeof(*sync_ts));
     if (!batch || !seat || !dec || !pending || !sync_ts) return ESP_ERR_NO_MEM;
     oft_decoder_init(dec);
-#if OFT_SYNC_GPIO >= 0
-    gpio_config_t io = {
-        .pin_bit_mask = 1ULL << OFT_SYNC_GPIO,
-        .mode = GPIO_MODE_INPUT,
-        .pull_up_en = GPIO_PULLUP_DISABLE,
-        .pull_down_en = GPIO_PULLDOWN_ENABLE,
-        .intr_type = GPIO_INTR_POSEDGE,
-    };
-    esp_err_t e = gpio_config(&io);
-    if (e != ESP_OK) return e;
-    e = gpio_install_isr_service(0);
-    if (e != ESP_OK && e != ESP_ERR_INVALID_STATE) return e;
-    e = gpio_isr_handler_add(OFT_SYNC_GPIO, sync_isr, NULL);
-    if (e != ESP_OK) return e;
-#endif
-    return ESP_OK;
+    return oft_sync_pin(sync_gpio); /* the pin gpio_out_init chose */
 }
 
 /* ---- plan ---- */

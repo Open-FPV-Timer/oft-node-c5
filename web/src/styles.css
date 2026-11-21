@@ -255,6 +255,8 @@ header.top .actions button { white-space: nowrap; }
 .gpio-row.ws2812 { border-color: var(--s5); }
 .gpio-row.led .gpio-name { color: var(--s4); font-weight: 600; }
 .gpio-row.ws2812 .gpio-name { color: var(--s5); font-weight: 600; }
+.gpio-row.sync { border-color: var(--s6); }
+.gpio-row.sync .gpio-name { color: var(--s6); font-weight: 600; }
 .gpio-row .seg button { padding: 3px 8px; font-size: 12px; white-space: nowrap; }
 @media (max-width: 420px) {
   .gpio-dialog { padding: 12px; }

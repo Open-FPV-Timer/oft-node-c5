@@ -165,8 +165,8 @@ export class MockTransport implements Transport {
   private readonly tskipDefault: number; // the firmware's TUNESKIP default per target
   private tskip: number;
   // GPIO?: one character per pin, '-' not used, 'L', 'H', 'T' and 'R' the
-  // UART's pins (one each; C5 default 11 and 12), 'x' flash or USB (as the
-  // firmware). The saved ones are kept across REBOOT, not page loads.
+  // UART's pins (one each; C5 default 11 and 12), 'S' the OFT SYNC input
+  // (default 2), 'x' flash or USB (as the firmware). The saved ones are kept across REBOOT, not page loads.
   private gpioActive: string[];
   private gpioSaved: string[];
   private readonly gpioDefault: string[];
@@ -180,6 +180,7 @@ export class MockTransport implements Transport {
     const reserved = target === "s3" ? [19, 20, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32] : [13, 14, 16, 17, 18, 20, 21, 22];
     this.gpioDefault = Array.from({ length: target === "s3" ? 49 : 29 }, (_, n) => (reserved.includes(n) ? "x" : "-"));
     if (target !== "s3") [this.gpioDefault[11], this.gpioDefault[12]] = ["T", "R"];
+    this.gpioDefault[2] = "S";
     this.gpioSaved = [...this.gpioDefault];
     this.gpioActive = [...this.gpioSaved];
   }
@@ -439,10 +440,10 @@ export class MockTransport implements Transport {
         this.gpioSaved = [...this.gpioDefault];
         return ok();
       case parts[0] === "GPIO" && parts.length === 3 && /^\d+$/.test(parts[1]): {
-        const s = { NONE: "-", LOW: "L", HIGH: "H", TX: "T", RX: "R", LED: "D", WS2812: "W" }[parts[2]];
+        const s = { NONE: "-", LOW: "L", HIGH: "H", TX: "T", RX: "R", LED: "D", WS2812: "W", SYNC: "S" }[parts[2]];
         if (!s) return this.text("ERR gpio_state\n");
         if (this.gpioActive[num(1)] === undefined || this.gpioActive[num(1)] === "x") return this.text("ERR gpio_pin\n");
-        if ("TRDW".includes(s)) this.gpioActive = this.gpioActive.map((c) => (c === s ? "-" : c));
+        if ("TRDWS".includes(s)) this.gpioActive = this.gpioActive.map((c) => (c === s ? "-" : c));
         this.gpioActive[num(1)] = s;
         return ok();
       }
