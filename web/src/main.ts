@@ -1,4 +1,5 @@
-// Widscan58 web UI entry point. GPL-3.0-or-later.
+// OFT Node scanner page (scanner.html): the Widscan58 dashboard. The page people
+// land on is the flasher, setup.ts. GPL-3.0-or-later.
 import "./styles.css";
 import { App, type View } from "./model/app";
 import { Store, parseInfo } from "./model/store";
@@ -37,7 +38,7 @@ const recorder = new Recorder();
 // ---- Theme ------------------------------------------------------------------
 // The installed app's title bar follows the theme (--page).
 function setThemeColor(t: string) {
-  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", t === "light" ? "#f9f9f7" : "#0d0d0d");
+  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", t === "light" ? "#f6f7f9" : "#111417");
 }
 function applyTheme(t: string) {
   document.documentElement.dataset.theme = t;
@@ -51,9 +52,10 @@ function applyTheme(t: string) {
   }
   store.touch();
 }
-let themeName = "dark";
+// No saved choice: follow the system setting.
+let themeName = matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
 try {
-  themeName = localStorage.getItem("widscan58.theme") ?? "dark";
+  themeName = localStorage.getItem("widscan58.theme") ?? themeName;
 } catch {
   /* storage unavailable */
 }
@@ -66,7 +68,7 @@ registerServiceWorker(); // installable, works offline
 const dot = el("span", { class: "dot" });
 const connText = el("span", {}, "Disconnected");
 const connectBtn = el("button", { class: "primary" }, "Connect"); // becomes Disconnect while connected
-const flashBtn = el("button", { title: "Install the scanner firmware on a board" }, "Flash device");
+const flashBtn = el("button", { title: "Install the OFT Node firmware on a board" }, "Flash device");
 const simBtn = el("button", {}, "Simulate");
 const replayInput = el("input", { type: "file", accept: ".widscan58", style: "display:none" }) as HTMLInputElement;
 const replayBtn = el("button", {}, "Replay…");
@@ -99,15 +101,18 @@ const menu = el(
   gpioItem,
   el("label", { class: "menu-item menu-switch" }, el("span", {}, "Dark mode"), darkSwitch),
   el("div", { class: "menu-sep" }),
+  el("a", { class: "menu-item", role: "menuitem", href: "./" }, "Flash and set up a Node"),
+  el("div", { class: "menu-sep" }),
   el("div", { class: "menu-label" }, "About"),
-  el("a", { class: "menu-item", role: "menuitem", href: "https://github.com/CapnBry/widscan58", target: "_blank", rel: "noopener" }, "GitHub project ↗"),
+  el("a", { class: "menu-item", role: "menuitem", href: "https://github.com/Open-FPV-Timer/oft-node-c5", target: "_blank", rel: "noopener" }, "GitHub project ↗"),
+  el("a", { class: "menu-item", role: "menuitem", href: "https://github.com/CapnBry/widscan58", target: "_blank", rel: "noopener" }, "Based on Widscan58 ↗"),
   el("div", { class: "menu-info" }, el("span", {}, "Firmware"), fwValue),
   fwNote,
 );
 const header = el(
   "header",
   { class: "top" },
-  el("span", { class: "brand" }, el("span", { class: "menu-wrap" }, menuBtn, menu), el("h1", {}, "Widscan58")),
+  el("span", { class: "brand" }, el("span", { class: "menu-wrap" }, menuBtn, menu), el("h1", {}, "OFT Node scanner")),
   el("span", { class: "conn-state" }, dot, connText),
   el("span", { class: "actions" }, connectBtn, flashBtn),
 );

@@ -53,12 +53,19 @@ esptool --chip esp32c5 -p /dev/ttyACM0 --before no-reset --after watchdog-reset 
 
 See upstream's `CLAUDE.md` for the C5 rev 1.0 USB-reset caveat and PlatformIO builds.
 
+## Flasher page
+
+https://oft.reconfpv.com/ flashes a board from the browser and sets its pins (`web/index.html`,
+`web/src/setup.ts`). It is deliberately small: once a Node is flashed, everything else is done
+on the Timer's page. Upstream's dashboard (spectrum, lap timer, power meter) is still built,
+at `scanner.html` (`web/src/main.ts`), linked from the flasher's footer.
+
 ## Wiring to the Timer
 
 Host UART = UART0 on XIAO **D6 (GPIO11) TX** and **D7 (GPIO12) RX**, 921600 8N1 (upstream's
 default). SYNC input: default GPIO2, the MTMS pad on the back of the XIAO (`OFT_SYNC_GPIO`
 in `oft.h`). Like the UART pins it is a GPIO setting: `GPIO <n> SYNC` then `GPIO SAVE`, or
-GPIO Configure in the web UI, moves it to another pin (for example `GPIO 8 SYNC` for
+Set pins on the flasher page, moves it to another pin (for example `GPIO 8 SYNC` for
 header pin D8) with no rebuild.
 
 ## Status (2026-11-08)

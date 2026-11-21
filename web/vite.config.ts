@@ -52,4 +52,10 @@ function pwaPlugin(): Plugin {
 }
 
 // Relative base so the static build can be opened from any path (GitHub Pages, file host).
-export default defineConfig({ base: "./", plugins: [pwaPlugin()] });
+// Two pages: index.html is the flasher (src/setup.ts), scanner.html the
+// Widscan58 dashboard (src/main.ts).
+export default defineConfig({
+  base: "./",
+  plugins: [pwaPlugin()],
+  build: { rollupOptions: { input: { index: resolve(__dirname, "index.html"), scanner: resolve(__dirname, "scanner.html") } } },
+});

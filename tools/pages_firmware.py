@@ -57,7 +57,7 @@ def main() -> None:
         builds.append({"chipFamily": CHIP_FAMILY[env], "parts": parts})
         print(f"{env}: " + ", ".join(f"{p['path']} @ {p['offset']:#x}" for p in parts))
 
-    manifest = {"name": "Widscan58", "version": a.version, "date": a.date, "builds": builds}
+    manifest = {"name": "OFT Node", "version": a.version, "date": a.date, "builds": builds}
     (a.out / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
 
 

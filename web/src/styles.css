@@ -1,43 +1,46 @@
-/* Widscan58 web UI. GPL-3.0-or-later.
- * Palette: dataviz reference instance (categorical slots in fixed order,
- * single-hue sequential ramp, reserved status colours). Dark is the default
- * look for a spectrum tool; light is a selected alternative, not a flip. */
+/* OFT Node web UI (from Widscan58). GPL-3.0-or-later.
+ * Chrome: the Open FPV Timer look shared with the ELRS Sim RX page (cool grey
+ * panels, green accent). Data: categorical slots in fixed order and a
+ * single-hue sequential ramp, kept apart from the accent. */
 :root {
   color-scheme: dark;
-  --page: #0d0d0d;
-  --surface: #1a1a19;
-  --surface-2: #232321;
-  --ink: #ffffff;
-  --ink-2: #c3c2b7;
-  --muted: #898781;
-  --grid: #2c2c2a;
-  --axis: #383835;
-  --border: rgba(255, 255, 255, 0.1);
-  --accent: #3987e5;
+  --page: #111417;
+  --surface: #1a1f24;
+  --surface-2: #242b32;
+  --ink: #e6e9ec;
+  --ink-2: #c0c7ce;
+  --muted: #9aa4ad;
+  --grid: #2a3138;
+  --axis: #38414a;
+  --border: #2f3740;
+  --accent: #4caf50;
+  --accent-text: #0b0f12;
   --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
   --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767;
-  --good: #0ca30c; --warning: #fab219; --serious: #ec835a; --critical: #d03b3b;
+  --good: #4caf50; --warning: #ffb74d; --serious: #ec835a; --critical: #ef5350;
   /* Sequential (waterfall) ramp: blue, surface -> bright. */
-  --seq-0: #1a1a19; --seq-1: #0d366b; --seq-2: #184f95; --seq-3: #256abf;
+  --seq-0: #1a1f24; --seq-1: #0d366b; --seq-2: #184f95; --seq-3: #256abf;
   --seq-4: #3987e5; --seq-5: #6da7ec; --seq-6: #b7d3f6;
-  --font: system-ui, -apple-system, "Segoe UI", sans-serif;
-  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
 }
 :root[data-theme="light"] {
   color-scheme: light;
-  --page: #f9f9f7;
-  --surface: #fcfcfb;
-  --surface-2: #f0efec;
-  --ink: #0b0b0b;
-  --ink-2: #52514e;
-  --muted: #898781;
-  --grid: #e1e0d9;
-  --axis: #c3c2b7;
-  --border: rgba(11, 11, 11, 0.1);
-  --accent: #2a78d6;
+  --page: #f6f7f9;
+  --surface: #ffffff;
+  --surface-2: #eef1f4;
+  --ink: #1b1f24;
+  --ink-2: #454d55;
+  --muted: #5c6670;
+  --grid: #e1e5ea;
+  --axis: #c5ccd3;
+  --border: #dde2e7;
+  --accent: #2e7d32;
+  --accent-text: #ffffff;
   --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100;
   --s5: #e87ba4; --s6: #008300; --s7: #4a3aa7; --s8: #e34948;
-  --seq-0: #fcfcfb; --seq-1: #cde2fb; --seq-2: #9ec5f4; --seq-3: #6da7ec;
+  --good: #2e7d32; --warning: #c77700; --critical: #b3261e;
+  --seq-0: #ffffff; --seq-1: #cde2fb; --seq-2: #9ec5f4; --seq-3: #6da7ec;
   --seq-4: #3987e5; --seq-5: #1c5cab; --seq-6: #0d366b;
 }
 
@@ -53,15 +56,15 @@ button, select, input { font: inherit; color: inherit; }
 button {
   background: var(--surface-2);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: 8px;
   padding: 5px 10px;
   cursor: pointer;
 }
 button:hover:not(:disabled) { border-color: var(--muted); }
 button:disabled { opacity: 0.45; cursor: default; }
-button.primary { background: var(--accent); border-color: transparent; color: #fff; }
+button.primary { background: var(--accent); border-color: transparent; color: var(--accent-text); }
 button.danger { color: var(--critical); }
-button.on { background: var(--accent); color: #fff; border-color: transparent; }
+button.on { background: var(--accent); color: var(--accent-text); border-color: transparent; }
 select, input[type="number"], input[type="text"] {
   background: var(--surface-2);
   border: 1px solid var(--border);
@@ -588,3 +591,28 @@ main.shared { padding-top: 0; }
   .power-table { display: block; overflow-x: auto; font-size: 13px; }
   .power-table th, .power-table td { padding-right: 8px; }
 }
+
+/* ---- Flasher page (index.html, setup.ts): one column of numbered steps ---- */
+body.setup { font-size: 15px; line-height: 1.45; }
+body.setup header.top { padding: 14px 16px; }
+body.setup header.top h1 { font-size: 18px; letter-spacing: 0; }
+body.setup .pill { padding: 3px 10px; border: 1px solid var(--border); border-radius: 999px; font-size: 13px; color: var(--muted); }
+body.setup button { padding: 7px 12px; }
+body.setup main { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; max-width: 720px; margin: 0 auto; padding: 16px; }
+body.setup main p { margin: 0 0 10px; max-width: 70ch; color: var(--ink-2); }
+body.setup .lead { margin: 4px 0 0; color: var(--ink); }
+body.setup section { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; min-width: 0; }
+body.setup section > :last-child { margin-bottom: 0; }
+body.setup section h2 { display: flex; align-items: center; gap: 10px; font-size: 15px; margin: 0 0 10px; }
+body.setup .step-n { flex: none; width: 24px; height: 24px; border-radius: 50%; background: var(--accent); color: var(--accent-text); font-size: 13px; display: grid; place-items: center; }
+body.setup .kv { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; margin: 0 0 12px; font-size: 14px; }
+body.setup .kv dt { color: var(--muted); }
+body.setup .kv dd { margin: 0; font-family: var(--mono); font-size: 13px; overflow-wrap: anywhere; }
+body.setup .row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+body.setup .muted { color: var(--muted); font-size: 13px; }
+body.setup .muted[hidden] { display: none; }
+body.setup .banner { margin: 0; padding: 10px 14px; border: 1px solid var(--warning); border-radius: 8px; background: none; color: var(--warning); font-size: 14px; }
+body.setup a { color: var(--accent); }
+body.setup footer { display: flex; flex-wrap: wrap; gap: 6px 18px; max-width: 720px; margin: 0 auto; padding: 4px 16px 24px; font-size: 13px; }
+body.setup button.link { border: 0; background: none; padding: 0; color: var(--accent); font-size: 13px; text-decoration: underline; }
+body.setup dialog { font-size: 13px; line-height: 1.4; }
