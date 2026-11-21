@@ -39,6 +39,7 @@ static void expect_frame(const char *name, const oft_msg_t *m, const char *hex) 
         CHECK(back.u.plan.n == m->u.plan.n && back.u.plan.seats[0].freq_mhz == m->u.plan.seats[0].freq_mhz);
     } else if (m->type == OFT_MSG_HELLO) {
         CHECK(back.u.hello.chip_id == m->u.hello.chip_id && back.u.hello.features == m->u.hello.features);
+        CHECK(!strcmp(back.u.hello.chip, m->u.hello.chip));
     } else if (m->type == OFT_MSG_PONG) {
         CHECK(back.u.pong.t_node == m->u.pong.t_node);
     }
@@ -67,6 +68,8 @@ int main(void) {
     m.type = OFT_MSG_HELLO;
     m.u.hello = (oft_hello_t){.chip_id = 0x0000112233445566ULL, .fw = {0, 1, 0}, .link_version = 1, .freq_min_mhz = 5645, .freq_max_mhz = 5945, .max_seats = 8, .features = OFT_FEAT_SYNC | OFT_FEAT_DFU};
     expect_frame("hello", &m, VEC_HELLO);
+    strcpy(m.u.hello.chip, "esp32c5");
+    expect_frame("hello_chip", &m, VEC_HELLO_CHIP);
 
     memset(&m, 0, sizeof m); m.type = OFT_MSG_PLAN;
     m.u.plan.gain_index = OFT_GAIN_AUTO; m.u.plan.n = 1; m.u.plan.seats[0].seat = 0; m.u.plan.seats[0].freq_mhz = 5800;

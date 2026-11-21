@@ -88,6 +88,7 @@ static void send_hello(void) {
         .freq_max_mhz = (uint16_t)(profile_equiv_khz(p, p->tune_hi_khz) / 1000.0 + 0.5),
         .max_seats = PROFILE_MAX_CHANNELS,
         .features = (sync_gpio >= 0 ? OFT_FEAT_SYNC : 0) | OFT_FEAT_DFU,
+        .chip = CONFIG_IDF_TARGET, /* "esp32c5", "esp32s3" */
     };
     send(&m);
 }

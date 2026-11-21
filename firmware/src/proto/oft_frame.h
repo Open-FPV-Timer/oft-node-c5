@@ -35,6 +35,7 @@ enum {
     OFT_MSG_DFU = 0x14,
 };
 
+#define OFT_MAX_CHIP_NAME 16
 enum { OFT_FEAT_SYNC = 1u << 0, OFT_FEAT_IQ_DUMP = 1u << 1, OFT_FEAT_DFU = 1u << 2 };
 enum { OFT_SAMPLE_CLIPPED = 1u << 0, OFT_SAMPLE_POST_HOP = 1u << 1 };
 #define OFT_GAIN_AUTO 0xFF
@@ -46,6 +47,9 @@ typedef struct {
     uint16_t freq_min_mhz, freq_max_mhz;
     uint8_t max_seats;
     uint16_t features;
+    /* What the Node is built on, e.g. "esp32c5": lower-case letters, digits, '-', '_', '.'.
+     * Optional on the wire: "" sends nothing, as firmware from before the field did. */
+    char chip[OFT_MAX_CHIP_NAME + 1];
 } oft_hello_t;
 
 typedef struct {

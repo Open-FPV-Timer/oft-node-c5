@@ -82,6 +82,12 @@ static size_t encode_payload(const oft_msg_t *m, uint8_t *out, size_t cap) {
         w16(&w, h->freq_max_mhz);
         w8(&w, h->max_seats);
         w16(&w, h->features);
+        size_t len = 0;
+        while (len < OFT_MAX_CHIP_NAME && h->chip[len]) len++;
+        if (len) {
+            w8(&w, (uint8_t)len);
+            for (size_t i = 0; i < len; i++) w8(&w, (uint8_t)h->chip[i]);
+        }
         break;
     }
     case OFT_MSG_PLAN: {
@@ -151,6 +157,15 @@ bool oft_decode_payload(const uint8_t *payload, size_t n, oft_msg_t *out) {
         h->freq_max_mhz = r16(&r);
         h->max_seats = r8(&r);
         h->features = r16(&r);
+        /* Optional; a name cut short or too long reads as no name. */
+        h->chip[0] = 0;
+        if (r.ok && r.pos < r.n) {
+            size_t len = r.p[r.pos];
+            if (len <= OFT_MAX_CHIP_NAME && r.pos + 1 + len <= r.n) {
+                memcpy(h->chip, r.p + r.pos + 1, len);
+                h->chip[len] = 0;
+            }
+        }
         break;
     }
     case OFT_MSG_PLAN: {
