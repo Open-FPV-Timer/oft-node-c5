@@ -33,7 +33,9 @@ OFT draws on is in the [oft README](https://github.com/Open-FPV-Timer/oft#acknow
 Mode switching needs no command: boot in RotorHazard mode as before; a Timer speaking the
 Node link is recognised by its frames. `PROTOCOL?` answers `PROTOCOL OFT`.
 
-Units on the link: power in **0.1 dB relative to full scale** (level code 255 = 0 dBFS).
+Units on the link: power in **0.1 dB relative to full scale** (level code 255 = 0 dBFS). This
+Node computes real signal power, so it never sets the `level_mv` feature bit (spec §6.4) and
+Timers show its levels as dB.
 
 ## Build
 

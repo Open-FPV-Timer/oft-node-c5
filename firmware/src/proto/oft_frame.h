@@ -36,7 +36,9 @@ enum {
 };
 
 #define OFT_MAX_CHIP_NAME 16
-enum { OFT_FEAT_SYNC = 1u << 0, OFT_FEAT_IQ_DUMP = 1u << 1, OFT_FEAT_DFU = 1u << 2 };
+/* OFT_FEAT_LEVEL_MV: levels are millivolts, not tenths of a dB. For Nodes that read an analogue
+ * RSSI pin; this firmware computes real dB and never sets it. */
+enum { OFT_FEAT_SYNC = 1u << 0, OFT_FEAT_IQ_DUMP = 1u << 1, OFT_FEAT_DFU = 1u << 2, OFT_FEAT_LEVEL_MV = 1u << 3 };
 enum { OFT_SAMPLE_CLIPPED = 1u << 0, OFT_SAMPLE_POST_HOP = 1u << 1 };
 #define OFT_GAIN_AUTO 0xFF
 
