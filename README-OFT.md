@@ -50,8 +50,16 @@ Flash (XIAO C5 over USB-C; the bootloader goes at 0x2000 on the C5):
 esptool --chip esp32c5 -p /dev/ttyACM0 --before no-reset --after watchdog-reset write-flash \
   0x2000 firmware/build-c5/bootloader/bootloader.bin \
   0x8000 firmware/build-c5/partition_table/partition-table.bin \
-  0x10000 firmware/build-c5/widscan58.bin
+  0x10000 firmware/build-c5/oft-node-c5.bin
 ```
+
+Or the same three as one file, which is easier to carry to another computer:
+
+```sh
+esptool --chip esp32c5 -p /dev/ttyACM0 write-flash 0x0 firmware/build-c5/oft-node-c5-full.bin
+```
+
+`oft-node-c5.bin` on its own is the file the Timer's page takes under Node firmware.
 
 See upstream's `CLAUDE.md` for the C5 rev 1.0 USB-reset caveat and PlatformIO builds.
 
@@ -65,12 +73,26 @@ at `scanner.html` (`web/src/main.ts`), linked from the flasher's footer.
 ## Wiring to the Timer
 
 Host UART = UART0 on XIAO **D6 (GPIO11) TX** and **D7 (GPIO12) RX**, 921600 8N1 (upstream's
-default). SYNC input: default GPIO2, the MTMS pad on the back of the XIAO (`OFT_SYNC_GPIO`
-in `oft.h`). Like the UART pins it is a GPIO setting: `GPIO <n> SYNC` then `GPIO SAVE`, or
-Set pins on the flasher page, moves it to another pin (for example `GPIO 8 SYNC` for
-header pin D8) with no rebuild.
+default). SYNC input: default GPIO8, header pin D8 of the XIAO (`OFT_SYNC_GPIO` in `oft.h`).
+Like the UART pins it is a GPIO setting: `GPIO <n> SYNC` then `GPIO SAVE`, or Set pins on
+the flasher page, moves it to another pin with no rebuild. The default was GPIO2 (the MTMS
+pad on the back of the XIAO) until 2026-11-27: a Node wired that way needs `GPIO 2 SYNC`,
+`GPIO SAVE` after it is updated, or its SYNC wire moved to D8.
 
-## Status (2026-11-08)
+Nothing on the back of the XIAO is needed. The Timer restarts the Node with `Reset` and
+sends it to its ROM bootloader with `Dfu` (`radio_reboot_to_bootloader`), both over the
+Node link, and writes new firmware there over the same two wires. EN and BOOT wires are
+only a fallback for a Node whose firmware no longer answers; the XIAO's own buttons (hold
+BOOT, tap RESET) and its USB-C port do the same job.
 
-Builds with IDF 5.5.5 in Docker and passes upstream's RF-bank SRAM guard with ~600 B to spare (5.5.1 lacks a private PHY symbol upstream uses); not yet run on hardware. `firmware/build-c5/widscan58.bin` is the app image. Open items: Identify (status LED),
+## Status (2026-11-27)
+
+Running on four XIAO ESP32-C5 boards behind an RP2350 Timer: 1 to 8 seats, SYNC on D8,
+restarted and rewritten through the Timer over the two data wires alone. The chip id in
+`Hello` is the 48-bit station MAC (`esp_read_mac`); before 2026-11-27 it came from an
+8-byte address read into 6 bytes, and three boards out of four reported the same id.
+
+Earlier notes (2026-11-08):
+
+Builds with IDF 5.5.5 in Docker and passes upstream's RF-bank SRAM guard with ~600 B to spare (5.5.1 lacks a private PHY symbol upstream uses); not yet run on hardware. `firmware/build-c5/oft-node-c5.bin` is the app image. Open items: Identify (status LED),
 C5 temperature in Status, post-hop sample flag, hop-error count.

@@ -639,5 +639,10 @@ uint32_t *radio_sample_buffer(unsigned *max_words) {
 
 void radio_reboot_to_bootloader(void) {
     REG_SET_FIELD(LP_AON_SYS_CFG_REG, LP_AON_FORCE_DOWNLOAD_BOOT, 1); /* boot0: UART/USB */
+    /* The ROM bootloader takes its UART rate from the first traffic it hears. Whoever asked
+     * for this should call it (SYNC) before sending anything else on the UART, or it
+     * settles on the wrong rate and looks dead: an OFT Timer's 921600-baud pings did that
+     * to four Nodes on 2026-11-27, which then sat at "waiting for download" answering
+     * nothing at 115200. The Timer can now talk such a Node round. */
     esp_restart();
 }

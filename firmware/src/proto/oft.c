@@ -164,8 +164,12 @@ esp_err_t oft_sync_pin(int gpio) {
 }
 
 esp_err_t oft_init(void) {
-    uint8_t mac[6] = {0};
-    esp_efuse_mac_get_default(mac);
+    /* The 48-bit station MAC. Not esp_efuse_mac_get_default: on a chip with an 802.15.4
+     * radio (the C5) that one is 8 bytes, the two extension bytes in the middle, so it
+     * overran a 6-byte buffer and the 6 bytes kept left out most of the part that differs
+     * from board to board. Three XIAOs out of four had the same id (2026-11-27). */
+    uint8_t mac[8] = {0};
+    esp_read_mac(mac, ESP_MAC_WIFI_STA);
     chip_id = 0;
     for (int i = 0; i < 6; i++) chip_id = (chip_id << 8) | mac[i];
     batch = calloc(PROFILE_MAX_CHANNELS, sizeof(*batch));

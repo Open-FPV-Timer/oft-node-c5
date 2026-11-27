@@ -31,4 +31,6 @@ if(NOT DEFINED ENV{PLATFORMIO_BUILD_FLAGS} AND NOT DEFINED EXTRA_COMPONENT_DIRS)
     set(EXTRA_COMPONENT_DIRS ${CMAKE_CURRENT_LIST_DIR}/src)
 endif()
 set(COMPONENTS src __pio_env)
-project(widscan58)
+# Names the build outputs (oft-node-c5.bin, .elf). The INFO reply still says "widscan58":
+# the web UI and the tools identify the firmware by that word.
+project(oft-node-c5)

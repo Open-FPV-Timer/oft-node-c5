@@ -84,8 +84,8 @@ document.getElementById("app")!.append(
       el(
         "p",
         {},
-        "The defaults match the OFT wiring: serial to the Timer on D6 (TX) and D7 (RX), and the SYNC input on GPIO2, " +
-          "the MTMS pad on the back. Move them here if your build uses other pins.",
+        "The defaults match the OFT wiring: serial to the Timer on D6 (TX) and D7 (RX), and the SYNC input on D8 " +
+          "(GPIO8). Move them here if your build uses other pins.",
       ),
       el("div", { class: "row" }, gpioBtn, gpioHint),
     ),

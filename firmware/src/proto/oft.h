@@ -13,9 +13,10 @@
 
 /* SYNC input from the Timer: the default pin. The pin in use is a GPIO setting
  * (GPIO <n> SYNC, gpio_out.c), so a board wired differently needs no build of its own.
- * GPIO2 is the MTMS pad on the back of a XIAO ESP32-C5. -1: none by default. */
+ * GPIO8 is header pin D8 of a XIAO ESP32-C5, so nothing on the back of the board has to
+ * be soldered; it is not a strapping pin. -1: none by default. */
 #ifndef OFT_SYNC_GPIO
-#define OFT_SYNC_GPIO 2
+#define OFT_SYNC_GPIO 8
 #endif
 
 esp_err_t oft_init(void);
