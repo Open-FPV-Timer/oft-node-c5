@@ -17,7 +17,7 @@
 #endif
 
 #define OFT_FW_MAJOR 0
-#define OFT_FW_MINOR 1
+#define OFT_FW_MINOR 2
 #define OFT_FW_PATCH 0
 
 /* Samples per frame. Smaller frames mean less latency and a better uniform-dt fit when the
